@@ -1,0 +1,12 @@
+# Ignore everything
+*
+
+# But not these files
+!SimpleRustChatApp/main.rs
+!SimpleGoChatApp/main.go
+!SimpleRustChatApp/Cargo.toml
+!README.md
+!.gitignore
+
+# Even if they are in subdirectories
+!*/
