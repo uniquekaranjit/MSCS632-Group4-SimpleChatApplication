@@ -102,11 +102,12 @@ func handleClient(conn net.Conn, cm *ChatManager) {
 	user := cm.RegisterUser(conn.RemoteAddr().String(), name, conn)
 
 	// Show command instructions once
-	fmt.Fprintln(conn, "Commands available:")
+	fmt.Fprintln(conn, "\n\n***************************************************\n")
 	fmt.Fprintln(conn, "- Type 'exit' to leave")
 	fmt.Fprintln(conn, "- Type '/search <query>' to search by keyword")
 	fmt.Fprintln(conn, "- Type '/user <username>' to search by user")
 	fmt.Fprintln(conn, "- Type any other message to chat")
+	fmt.Fprintln(conn, "***************************************************\n\n\n")
 
 	// Notify others
 	msg := Message{
