@@ -44,6 +44,12 @@ cd SimpleRustChatApp
 
 2. Run the server:
 ```bash
+cargo clean
+```
+```bash
+cargo build
+```
+```bash
 cargo run
 ```
 
