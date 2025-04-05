@@ -1,5 +1,3 @@
-# MSCS632-Group4-SimpleChatApplication
-# Simple Chat App implemented in Go and Rust. 
 # Simple TCP Chat Application
 
 A multi-client TCP chat application implemented in both Rust and Go. The application supports real-time messaging, user search, and keyword search functionality.
@@ -77,17 +75,5 @@ telnet 127.0.0.1 8080
 - `/user <username>` - Search messages by username
 - Any other message - Send a chat message
 
-## Implementation Details
 
-### Rust Version
-- Uses Tokio for async I/O
-- Implements thread-safe message storage with Arc<Mutex>
-- Uses broadcast channels for message distribution
-- Handles concurrent connections efficiently
-
-### Go Version
-- Uses goroutines for concurrent connections
-- Implements thread-safe message storage with sync.Mutex
-- Uses channels for message distribution
-- Handles concurrent connections with goroutines
 
