@@ -83,9 +83,16 @@ func (cm *ChatManager) BroadcastMessage(msg Message) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	// Only broadcast to clients, don't store the message here
-	for conn := range cm.clients {
-		fmt.Fprintf(conn, "[%s] %s: %s\n", msg.Timestamp, msg.SenderID, msg.Content)
+	// For system messages, only send the content without the timestamp and sender
+	if msg.SenderID == "System" {
+		for conn := range cm.clients {
+			fmt.Fprintf(conn, "%s\n", msg.Content)
+		}
+	} else {
+		// For regular messages, keep the original format
+		for conn := range cm.clients {
+			fmt.Fprintf(conn, "[%s] %s: %s\n", msg.Timestamp, msg.SenderID, msg.Content)
+		}
 	}
 }
 
@@ -109,10 +116,10 @@ func handleClient(conn net.Conn, cm *ChatManager) {
 	fmt.Fprintln(conn, "- Type any other message to chat")
 	fmt.Fprintln(conn, "***************************************************\n\n\n")
 
-	// Notify others
+	// Notify others with new format
 	msg := Message{
-		SenderID:  user.Name,
-		Content:   fmt.Sprintf("%s has joined.", user.Name),
+		SenderID:  "System",
+		Content:   fmt.Sprintf("*** %s joined at %s ***", user.Name, time.Now().Format("2006-01-02 15:04:05")),
 		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
 	}
 	cm.BroadcastMessage(msg)
@@ -175,8 +182,8 @@ func handleClient(conn net.Conn, cm *ChatManager) {
 	// Remove the user when they disconnect
 	cm.RemoveUser(conn)
 	msg = Message{
-		SenderID:  user.Name,
-		Content:   fmt.Sprintf("%s has left.", user.Name),
+		SenderID:  "System",
+		Content:   fmt.Sprintf("*** %s left at %s ***", user.Name, time.Now().Format("2006-01-02 15:04:05")),
 		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
 	}
 	cm.BroadcastMessage(msg)
