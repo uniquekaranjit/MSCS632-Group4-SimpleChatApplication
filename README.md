@@ -82,4 +82,15 @@ telnet 127.0.0.1 8080
 - Any other message - Send a chat message
 
 
+## Implementation Details
+
+### Rust Version
+- Uses Tokio for async I/O
+- Implements thread-safe message storage with Arc<Mutex>
+- Uses broadcast channels for message distribution  
+
+### Go Version
+- Uses goroutines for concurrent connections
+- Implements thread-safe message storage with sync.Mutex
+- Uses channels for message distribution
 
