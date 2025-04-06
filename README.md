@@ -25,6 +25,7 @@ A multi-client TCP chat application implemented in both Rust and Go. The applica
 
 ### Rust
 Add the following to your `Cargo.toml`:
+Please note this has been already added to the repository. 
 
 ```toml
 [dependencies]
