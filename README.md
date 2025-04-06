@@ -55,7 +55,7 @@ cargo run
 
 3. Connect clients using telnet:
 ```bash
-telnet 127.0.0.1 8080
+nc localhost 8080
 ```
 
 ### Go Version
@@ -71,7 +71,7 @@ go run main.go
 
 3. Connect clients using telnet:
 ```bash
-telnet 127.0.0.1 8080
+nc localhost 8080
 ```
 
 ## Available Commands
