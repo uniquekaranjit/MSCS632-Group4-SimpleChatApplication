@@ -1,3 +1,11 @@
+// This is a Rust implementation of the described TCP chat app.
+// Note: You'd run the server and clients as separate processes.
+
+// --- Dependencies (add to Cargo.toml) ---
+// tokio = { version = "1", features = ["full"] }
+// uuid = { version = "1" }
+// chrono = "0.4"
+
 use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, Mutex};
@@ -48,18 +56,9 @@ impl ChatManager {
         self.messages.lock().unwrap().push(msg);
     }
 
-    // Method to search messages by user
-    fn search_messages_by_user(&self, user_name: &str) -> Vec<String> {
+    fn search_messages(&self, query: &str) -> Vec<String> {
         self.messages.lock().unwrap().iter()
-            .filter(|msg| msg.sender_id == user_name)
-            .map(|m| m.format())
-            .collect()
-    }
-
-    // Method to search messages by keyword
-    fn search_messages_by_keyword(&self, keyword: &str) -> Vec<String> {
-        self.messages.lock().unwrap().iter()
-            .filter(|msg| msg.matches(keyword))
+            .filter(|msg| msg.matches(query))
             .map(|m| m.format())
             .collect()
     }
@@ -76,6 +75,22 @@ impl ChatManager {
     fn remove_user(&self, addr: &SocketAddr) {
         self.users.lock().unwrap().remove(addr);
     }
+    
+    // Search messages by user name
+    fn search_messages_by_user(&self, user_name: &str) -> Vec<String> {
+        self.messages.lock().unwrap().iter()
+            .filter(|msg| msg.sender_id.contains(user_name))
+            .map(|m| m.format())
+            .collect()
+    }
+
+    // Search messages by keyword (content or sender name)
+    fn search_messages_by_keyword(&self, keyword: &str) -> Vec<String> {
+        self.messages.lock().unwrap().iter()
+            .filter(|msg| msg.content.contains(keyword))
+            .map(|m| m.format())
+            .collect()
+    }    
 }
 
 #[tokio::main]
@@ -95,35 +110,73 @@ async fn main() -> io::Result<()> {
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
 
+            // Get user's name
             writer.write_all(b"Enter your name: ").await.unwrap();
+            writer.flush().await.unwrap();
             reader.read_line(&mut line).await.unwrap();
             let name = line.trim().to_string();
             let user = chat_manager.register_user(addr, name);
-            let user_id = user.id.clone();
             line.clear();
 
-            tx.send(format!("{} has joined.", user.name)).unwrap();
+            // Show command instructions in a box
+            writer.write_all(b"\n\n***************************************************\n").await.unwrap();
+            writer.write_all(b"- Type 'exit' to leave\n").await.unwrap();
+            writer.write_all(b"- Type '/search <query>' to search by keyword\n").await.unwrap();
+            writer.write_all(b"- Type '/user <username>' to search by user\n").await.unwrap();
+            writer.write_all(b"- Type any other message to chat\n").await.unwrap();
+            writer.write_all(b"***************************************************\n\n\n").await.unwrap();
+            writer.flush().await.unwrap();
+
+            // Notify others of join with new format
+            let join_msg = format!("\n\n*** {} has joined at {} ***\n\n", 
+                user.name,
+                Local::now().format("%Y-%m-%d %H:%M:%S")
+            );
+            tx.send(join_msg).unwrap();
 
             loop {
+                writer.write_all(b"> ").await.unwrap();
+                writer.flush().await.unwrap();
                 tokio::select! {
                     result = reader.read_line(&mut line) => {
                         if result.unwrap() == 0 { break; }
                         let content = line.trim().to_string();
 
-                        if content.starts_with("search user:") {
-                            // Extract user name from the command
-                            let user_name = content.splitn(2, ":").nth(1).unwrap().trim();
-                            let search_results = chat_manager.search_messages_by_user(user_name);
-                            let result_str = search_results.join("\n");
-                            writer.write_all(result_str.as_bytes()).await.unwrap();
-                            writer.write_all(b"\n").await.unwrap();
-                        } else if content.starts_with("search keyword:") {
-                            // Extract keyword from the command
-                            let keyword = content.splitn(2, ":").nth(1).unwrap().trim();
-                            let search_results = chat_manager.search_messages_by_keyword(keyword);
-                            let result_str = search_results.join("\n");
-                            writer.write_all(result_str.as_bytes()).await.unwrap();
-                            writer.write_all(b"\n").await.unwrap();
+                        if content == "exit" {
+                            // Notify others of leave with new format
+                            let leave_msg = format!("\n\n*** {} has left at {} ***\n\n", 
+                                user.name,
+                                Local::now().format("%Y-%m-%d %H:%M:%S")
+                            );
+                            chat_manager.remove_user(&addr);
+                            tx.send(leave_msg).unwrap();
+                            break;
+                        } else if content.starts_with("/search ") {
+                            let query = content.splitn(2, " ").nth(1).unwrap();
+                            let search_results = chat_manager.search_messages_by_keyword(query);
+                            if !search_results.is_empty() {
+                                writer.write_all(b"Search results by keyword:\n").await.unwrap();
+                                for result in search_results {
+                                    writer.write_all(result.as_bytes()).await.unwrap();
+                                    writer.write_all(b"\n").await.unwrap();
+                                }
+                            } else {
+                                writer.write_all(b"No results found.\n").await.unwrap();
+                            }
+                            writer.flush().await.unwrap();
+                        } else if content.starts_with("/user ") {
+                            let query = content.splitn(2, " ").nth(1).unwrap();
+                            let search_results = chat_manager.search_messages_by_user(query);
+                            if !search_results.is_empty() {
+                                writer.write_all(b"Search results by user:\n").await.unwrap();
+                                for result in search_results {
+                                    writer.write_all(result.as_bytes()).await.unwrap();
+                                    writer.write_all(b"\n").await.unwrap();
+                                }
+                            } else {
+                                writer.write_all(b"No results found.\n").await.unwrap();
+                            }
+                            writer.flush().await.unwrap();
                         } else {
                             let msg = Message {
                                 sender_id: user.name.clone(),
@@ -140,6 +193,7 @@ async fn main() -> io::Result<()> {
                         if let Ok(msg) = result {
                             writer.write_all(msg.as_bytes()).await.unwrap();
                             writer.write_all(b"\n").await.unwrap();
+                            writer.flush().await.unwrap();
                         }
                     }
                 }
@@ -152,4 +206,4 @@ async fn main() -> io::Result<()> {
 }
 
 // To run a client, you can use `telnet 127.0.0.1 8080` in the terminal.
-// Clients can now issue the command to search by user or keyword.
+// For Go version, a separate implementation would be created using goroutines and net package.
